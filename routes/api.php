@@ -21,20 +21,20 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 
 // Supplier Routes
 Route::post('suppliers/abn-lookup', [SupplierController::class, 'abnLookup']);
-Route::apiResource('suppliers', SupplierController::class)->only(['index', 'store', 'show']);
+Route::apiResource('suppliers', SupplierController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
 
 // Ingredient Routes
-Route::apiResource('ingredients', IngredientController::class)->only(['index', 'store', 'show']);
+Route::apiResource('ingredients', IngredientController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
 
 // Invoice Routes
-Route::apiResource('invoices', InvoiceController::class)->only(['index', 'store', 'show']);
+Route::apiResource('invoices', InvoiceController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
 
 // Recipe Routes
-Route::apiResource('recipes', RecipeController::class)->only(['index', 'store', 'show']);
+Route::apiResource('recipes', RecipeController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
 
 // Staff / Team Routes
 Route::get('/teams/{team}/status', [TeamController::class, 'status']); // Get a team member's current clock-in status
-Route::apiResource('teams', TeamController::class)->only(['index', 'store', 'show']);
+Route::apiResource('teams', TeamController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
 
 // Timesheet Routes
 Route::post('/timesheets/clock-in', [TimesheetController::class, 'clockIn']);

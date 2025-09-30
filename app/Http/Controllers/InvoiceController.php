@@ -65,4 +65,34 @@ class InvoiceController extends Controller
 
         return response()->json($invoice, 201);
     }
+    // Update the specified resource in storage.
+    public function update(Request $request, $id)
+    {
+        $invoice = Invoice::findOrFail($id);
+
+        $validated = $request->validate([
+            'supplier_id' => 'sometimes|exists:suppliers,id',
+            'invoice_date' => 'sometimes|date',
+            'due_date' => 'sometimes|date|after_or_equal:invoice_date',
+            'total' => 'sometimes|numeric|min:0',
+            'invoice_file' => 'sometimes|file|mimes:pdf,jpg,png|max:2048', // Max 2MB
+        ]);
+
+        if ($request->hasFile('invoice_file')) {
+            $path = $request->file('invoice_file')->store('invoices', 'public');
+            $validated['invoice_file'] = $path;
+        }
+
+        $invoice->update($validated);
+
+        return response()->json($invoice);
+    }
+    // Remove the specified resource from storage.
+    public function destroy($id)
+    {
+        $invoice = Invoice::findOrFail($id);
+        $invoice->delete();
+        return response()->json(null, 204);
+    }
+
 }

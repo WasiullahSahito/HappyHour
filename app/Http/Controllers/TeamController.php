@@ -61,4 +61,37 @@ class TeamController extends Controller
         $teamMember = Team::create($validated);
         return response()->json($teamMember, 201);
     }
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(Request $request, $id)
+    {
+        $teamMember = Team::findOrFail($id);
+        $validated = $request->validate([
+            'first_name' => 'sometimes|required|string|max:255',
+            'last_name' => 'sometimes|required|string|max:255',
+            'email' => 'sometimes|required|email|unique:teams,email,' . $teamMember->id,
+            'phone_number' => 'nullable|string',
+            'date_of_birth' => 'nullable|date',
+            'home_address' => 'nullable|string',
+            'position' => 'sometimes|required|string',
+            'employment_type' => 'sometimes|required|string',
+            'hourly_rate' => 'nullable|numeric',
+            'start_date' => 'nullable|date',
+            'branch' => 'nullable|string',
+            'schedule' => 'nullable|array',
+        ]);
+
+        $teamMember->update($validated);
+        return response()->json($teamMember);
+    }
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy($id)
+    {
+        $teamMember = Team::findOrFail($id);
+        $teamMember->delete();
+        return response()->json(null, 204);
+    }
 }

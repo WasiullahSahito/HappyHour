@@ -95,4 +95,32 @@ class SupplierController extends Controller
 
         return response()->json(['message' => 'No business found with this ABN. You can still continue by entering details manually.'], 404);
     }
+    public function update(Request $request, $id)
+    {
+        $supplier = Supplier::findOrFail($id);
+
+        $validated = $request->validate([
+            'company_name' => 'required|string|max:255',
+            'email_address' => 'required|email|unique:suppliers,email_address,' . $supplier->id,
+            'abn' => 'nullable|string|max:20|unique:suppliers,abn,' . $supplier->id,
+            'primary_contact_person' => 'required|string',
+            'phone_number' => 'required|string',
+            'street_address' => 'nullable|string',
+            'city' => 'nullable|string',
+            'state' => 'nullable|string',
+            'postcode' => 'nullable|string',
+            'entity_type' => 'nullable|string',
+            'entity_status' => 'nullable|string',
+            'product_categories' => 'nullable|array',
+        ]);
+
+        $supplier->update($validated);
+        return response()->json($supplier);
+    }
+    public function destroy($id)
+    {
+        $supplier = Supplier::findOrFail($id);
+        $supplier->delete();
+        return response()->json(null, 204);
+    }
 }
