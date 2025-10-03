@@ -6,7 +6,7 @@ import Modal from '../components/Modal';
 import StatCard from '../components/StatsCard';
 import axios from 'axios';
 
-// CreateRecipeModal component remains exactly the same
+// CreateRecipeModal component has been updated
 const CreateRecipeModal = ({ onClose, onSave, availableIngredients }) => {
     const [recipeIngredients, setRecipeIngredients] = useState([]);
     const [formData, setFormData] = useState({ recipe_name: '', selling_price: '' });
@@ -15,11 +15,18 @@ const CreateRecipeModal = ({ onClose, onSave, availableIngredients }) => {
 
     const handleChange = e => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
 
+    // Adds an ingredient to the recipe list with a default quantity of 1
     const addIngredient = (ingredient) => {
-        const quantity = prompt(`How many ${ingredient.unit}s of ${ingredient.ingredient_name}?`, 1);
-        if (quantity && !isNaN(quantity)) {
-            setRecipeIngredients(prev => [...prev, { ...ingredient, quantity: parseFloat(quantity) }]);
-        }
+        if (recipeIngredients.some(item => item.id === ingredient.id)) return; // Avoid duplicates
+        setRecipeIngredients(prev => [...prev, { ...ingredient, quantity: 1 }]);
+    };
+
+    // Updates the quantity for a specific ingredient in the recipe
+    const handleQuantityChange = (id, newQuantity) => {
+        const quantity = Math.max(0, parseFloat(newQuantity) || 0);
+        setRecipeIngredients(prev =>
+            prev.map(item => (item.id === id ? { ...item, quantity } : item))
+        );
     };
 
     const removeIngredient = (id) => setRecipeIngredients(prev => prev.filter(item => item.id !== id));
@@ -31,7 +38,10 @@ const CreateRecipeModal = ({ onClose, onSave, availableIngredients }) => {
         const payload = {
             ...formData,
             selling_price: Number(formData.selling_price) || 0,
-            ingredients: recipeIngredients.map(ing => ({ id: ing.id, quantity: ing.quantity })),
+            // Filter out ingredients with 0 quantity before submitting
+            ingredients: recipeIngredients
+                .filter(ing => ing.quantity > 0)
+                .map(ing => ({ id: ing.id, quantity: ing.quantity })),
         };
         try {
             await axios.post('/api/recipes', payload);
@@ -47,6 +57,11 @@ const CreateRecipeModal = ({ onClose, onSave, availableIngredients }) => {
             alert('Error: \n' + errorMessage);
         } finally { setLoading(false); }
     };
+
+    // Filter out ingredients that have already been added to the recipe
+    const ingredientsToAdd = availableIngredients.filter(
+        ing => !recipeIngredients.some(item => item.id === ing.id)
+    );
 
     const totalCost = recipeIngredients.reduce((acc, item) => acc + (item.current_price * item.quantity), 0);
     const sellingPriceNum = Number(formData.selling_price) || 0;
@@ -71,7 +86,7 @@ const CreateRecipeModal = ({ onClose, onSave, availableIngredients }) => {
                 <div>
                     <h4>Available Ingredients</h4>
                     <div className="ingredients-list-container">
-                        {availableIngredients.map(ing => (
+                        {ingredientsToAdd.map(ing => (
                             <div key={ing.id} className="ingredient-item">
                                 <span>{ing.ingredient_name} <small>({ing.unit})</small></span>
                                 <button type="button" className="btn btn-primary" onClick={() => addIngredient(ing)}>Add</button>
@@ -82,12 +97,24 @@ const CreateRecipeModal = ({ onClose, onSave, availableIngredients }) => {
                 <div>
                     <h4>Recipe Ingredients</h4>
                     <div className="ingredients-list-container">
-                        {recipeIngredients.map(ing => (
+                        {recipeIngredients.length > 0 ? recipeIngredients.map(ing => (
                             <div key={ing.id} className="ingredient-item">
-                                <span>{ing.quantity} {ing.unit} {ing.ingredient_name}</span>
-                                <button type="button" className="btn btn-danger" onClick={() => removeIngredient(ing.id)}>Remove</button>
+                                <span>{ing.ingredient_name}</span>
+                                <div className="ingredient-controls">
+                                    <div className="quantity-control">
+                                        <button type="button" className="btn btn-secondary" onClick={() => handleQuantityChange(ing.id, ing.quantity - 0.1)}>-</button>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            value={ing.quantity.toFixed(2)}
+                                            onChange={(e) => handleQuantityChange(ing.id, e.target.value)}
+                                        />
+                                        <button type="button" className="btn btn-secondary" onClick={() => handleQuantityChange(ing.id, ing.quantity + 0.1)}>+</button>
+                                    </div>
+                                    <button type="button" className="btn-delete" onClick={() => removeIngredient(ing.id)}>Remove</button>
+                                </div>
                             </div>
-                        ))}
+                        )) : <p style={{ textAlign: 'center', padding: '20px' }}>No ingredients added yet.</p>}
                     </div>
                 </div>
             </div>

@@ -27,12 +27,17 @@ Route::apiResource('suppliers', SupplierController::class)->only(['index', 'stor
 Route::apiResource('ingredients', IngredientController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
 
 // Invoice Routes
+Route::post('invoices/{invoice}/process-ai', [InvoiceController::class, 'processWithAI']); // <<< --- ADD THIS NEW ROUTE
+
 Route::apiResource('invoices', InvoiceController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
 
 // Recipe Routes
 Route::apiResource('recipes', RecipeController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
 
 // Staff / Team Routes
+Route::get('/teams/{team}/timesheets', [TeamController::class, 'getRecentTimesheets']);
+
+Route::post('/teams/login-by-code', [TeamController::class, 'loginByCode']);
 Route::get('/teams/{team}/status', [TeamController::class, 'status']); // Get a team member's current clock-in status
 Route::apiResource('teams', TeamController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
 

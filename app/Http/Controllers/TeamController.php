@@ -39,6 +39,22 @@ class TeamController extends Controller
     }
 
     /**
+     * Authenticate a team member using their staff code.
+     */
+    public function loginByCode(Request $request)
+    {
+        $validated = $request->validate(['staff_code' => 'required|string']);
+
+        $teamMember = Team::where('staff_code', $validated['staff_code'])->first();
+
+        if (!$teamMember) {
+            return response()->json(['message' => 'Invalid staff code.'], 404);
+        }
+
+        return response()->json($teamMember);
+    }
+
+    /**
      * Store a newly created resource in storage.
      */
     public function store(Request $request)
@@ -93,5 +109,16 @@ class TeamController extends Controller
         $teamMember = Team::findOrFail($id);
         $teamMember->delete();
         return response()->json(null, 204);
+    }
+    public function getRecentTimesheets(Team $team)
+    {
+        // Eager load the timesheets, order by the most recent clock-in time,
+        // limit the result to 5, and return them.
+        $timesheets = $team->timesheets()
+            ->latest('clock_in') // This is shorthand for orderBy('clock_in', 'desc')
+            ->take(5)
+            ->get();
+
+        return response()->json($timesheets);
     }
 }

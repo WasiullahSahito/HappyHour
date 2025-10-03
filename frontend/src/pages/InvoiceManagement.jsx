@@ -4,9 +4,10 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import StatCard from '../components/StatsCard';
 import Modal from '../components/Modal';
-import axios from 'axios';
+import axios from 'axios'; // Assuming pre-configured axios client
 
-// UploadInvoiceForm component remains exactly the same
+// --- UPDATED UploadInvoiceForm ---
+// The form's text is simplified to reflect that it only uploads the file now.
 const UploadInvoiceForm = ({ onClose, onInvoiceUploaded, suppliers }) => {
     const [formData, setFormData] = useState({
         supplier_id: '',
@@ -41,7 +42,7 @@ const UploadInvoiceForm = ({ onClose, onInvoiceUploaded, suppliers }) => {
                     'Content-Type': 'multipart/form-data',
                 },
             });
-            alert('Invoice Uploaded and is being processed!');
+            alert('Invoice Uploaded! You can now process it with AI from the list.');
             onInvoiceUploaded();
             onClose();
         } catch (err) {
@@ -80,7 +81,7 @@ const UploadInvoiceForm = ({ onClose, onInvoiceUploaded, suppliers }) => {
             </div>
             <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={onClose} disabled={loading}>Cancel</button>
-                <button type="submit" className="btn btn-primary" disabled={loading}>{loading ? 'Uploading...' : 'Upload & Process'}</button>
+                <button type="submit" className="btn btn-primary" disabled={loading}>{loading ? 'Uploading...' : 'Upload Invoice'}</button>
             </div>
             {error && <p className="error-message" style={{ color: 'red' }}>{error}</p>}
         </form>
@@ -94,6 +95,7 @@ const InvoiceManagement = () => {
     const [suppliers, setSuppliers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [processingId, setProcessingId] = useState(null); // To track which invoice is being processed by AI
 
     const fetchData = async () => {
         setLoading(true);
@@ -130,6 +132,22 @@ const InvoiceManagement = () => {
         }
     };
 
+    // --- NEW: FUNCTION TO HANDLE AI PROCESSING ---
+    const handleProcessWithAI = async (invoiceId) => {
+        setProcessingId(invoiceId); // Set loading state for this specific invoice
+        try {
+            // This endpoint calls the new method on your Laravel controller
+            await axios.post(`/api/invoices/${invoiceId}/process-ai`);
+            alert('Invoice sent for AI processing. The list will update shortly.');
+            fetchData(); // Refresh the list to show the new "processing" status
+        } catch (err) {
+            console.error('AI Processing Error:', err);
+            alert('Failed to start AI processing. ' + (err.response?.data?.message || 'Please check the server.'));
+        } finally {
+            setProcessingId(null); // Clear loading state regardless of outcome
+        }
+    };
+
     const processingQueue = invoices.filter(inv => inv.status === 'processing').length;
     const needsReview = invoices.filter(inv => inv.status === 'needs review').length;
     const processed = invoices.filter(inv => inv.status === 'processed').length;
@@ -158,7 +176,6 @@ const InvoiceManagement = () => {
                                 <th>Invoice #</th>
                                 <th>Supplier</th>
                                 <th>Date</th>
-                                <th>Due Date</th>
                                 <th>Total</th>
                                 <th>Status</th>
                                 <th>Actions</th>
@@ -166,18 +183,28 @@ const InvoiceManagement = () => {
                         </thead>
                         <tbody>
                             {invoices.length === 0 ? (
-                                <tr><td colSpan="7" style={{ textAlign: 'center' }}>No invoices found.</td></tr>
+                                <tr><td colSpan="6" style={{ textAlign: 'center' }}>No invoices found.</td></tr>
                             ) : (
                                 invoices.map(invoice => (
                                     <tr key={invoice.id}>
                                         <td>{invoice.invoice_number || `INV-${invoice.id}`}</td>
                                         <td>{suppliers.find(s => s.id === invoice.supplier_id)?.company_name || 'N/A'}</td>
-                                        <td>{invoice.invoice_date}</td>
-                                        <td>{invoice.due_date}</td>
+                                        <td>{new Date(invoice.invoice_date).toLocaleDateString()}</td>
                                         <td>${Number(invoice.total || 0).toFixed(2)}</td>
-                                        <td><span className={`status-tag status-${invoice.status.replace(' ', '-')}`}>{invoice.status}</span></td>
+                                        <td><span className={`status-tag status-${(invoice.status || 'uploaded').replace(' ', '-')}`}>{invoice.status}</span></td>
                                         <td>
                                             <div className="actions-cell">
+                                                {/* --- NEW: CONDITIONAL AI PROCESSING BUTTON --- */}
+                                                {(invoice.status === 'uploaded' || invoice.status === 'needs review') && (
+                                                    <button
+                                                        onClick={() => handleProcessWithAI(invoice.id)}
+                                                        className="btn-link"
+                                                        disabled={processingId === invoice.id}
+                                                        style={{ color: '#4f46e5' }}
+                                                    >
+                                                        {processingId === invoice.id ? 'Processing...' : 'Process with AI'}
+                                                    </button>
+                                                )}
                                                 <Link to={`/invoices/${invoice.id}`} className="btn-link">View Details</Link>
                                                 <button onClick={() => handleDelete(invoice.id, invoice.invoice_number || `INV-${invoice.id}`)} className="btn-delete">Delete</button>
                                             </div>

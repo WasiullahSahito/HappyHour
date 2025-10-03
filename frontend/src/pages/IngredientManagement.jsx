@@ -145,15 +145,32 @@ const IngredientManagement = () => {
         }
     };
 
+    // Calculate stat card values
     const priceIncreases = ingredients.filter(i => i.seven_day_change > 0).length;
     const priceDecreases = ingredients.filter(i => i.seven_day_change < 0).length;
+
+    // --- DYNAMIC CALCULATION FOR AVG PRICE CHANGE ---
+    const calculateAvgChange = () => {
+        const ingredientsWithChange = ingredients.filter(i => typeof i.seven_day_change === 'number');
+        if (ingredientsWithChange.length === 0) {
+            return '0.0%';
+        }
+        const totalChange = ingredientsWithChange.reduce((sum, i) => sum + i.seven_day_change, 0);
+        const avgChange = totalChange / ingredientsWithChange.length;
+        const formattedAvgChange = avgChange.toFixed(1);
+        return avgChange > 0 ? `+${formattedAvgChange}%` : `${formattedAvgChange}%`;
+    };
+    const avgPriceChange = calculateAvgChange();
+    // --- END OF DYNAMIC CALCULATION ---
 
     return (
         <>
             <header><h1>Ingredient Management</h1><button className="btn btn-primary" onClick={() => setIsModalOpen(true)}>+ Add Ingredient</button></header>
             <div className="grid-container">
-                <StatCard title="Total Ingredients" value={ingredients.length} /><StatCard title="Price Increases" value={priceIncreases} type="increase" />
-                <StatCard title="Price Decreases" value={priceDecreases} type="decrease" /><StatCard title="Avg Price Change" value="+5.2%" type="avg-change" />
+                <StatCard title="Total Ingredients" value={ingredients.length} />
+                <StatCard title="Price Increases" value={priceIncreases} type="increase" />
+                <StatCard title="Price Decreases" value={priceDecreases} type="decrease" />
+                <StatCard title="Avg Price Change" value={avgPriceChange} type="avg-change" />
             </div>
             <div className="card table-container">
                 {loading && <p style={{ padding: '20px' }}>Loading...</p>}
