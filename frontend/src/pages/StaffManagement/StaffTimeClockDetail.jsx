@@ -31,8 +31,14 @@ const StaffTimeClockDetail = () => {
     }, [loggedInStaff]);
 
     useEffect(() => {
-        fetchData();
-    }, [fetchData]);
+        // Only fetch data if the user is active
+        if (loggedInStaff && loggedInStaff.status === 'active') {
+            fetchData();
+        } else if (loggedInStaff) {
+            setLoading(false); // Stop loading if inactive
+        }
+    }, [fetchData, loggedInStaff]);
+
 
     const handleAction = async (endpoint) => {
         try {
@@ -57,11 +63,37 @@ const StaffTimeClockDetail = () => {
         return <div className="time-clock-page"><p>Loading User...</p></div>;
     }
 
+    // --- NEW: Check for inactive status ---
+    if (loggedInStaff.status !== 'active') {
+        return (
+            <div className="time-clock-page">
+                <div className="time-clock-dashboard">
+                    <header className="dashboard-header">
+                        <div className="user-info">
+                            <div className="avatar">{loggedInStaff.first_name.charAt(0)}</div>
+                            <div>
+                                <strong>{loggedInStaff.first_name} {loggedInStaff.last_name}</strong>
+                                <small>{loggedInStaff.position} • {loggedInStaff.branch}</small>
+                            </div>
+                        </div>
+                        <button onClick={handleSignOut} className="btn-sign-out">Sign Out</button>
+                    </header>
+                    <div className="dashboard-card" style={{ textAlign: 'center' }}>
+                        <h3>Account Inactive</h3>
+                        <p style={{ color: '#6b7280', padding: '20px 0' }}>
+                            Your account is currently inactive. Please contact a manager to reactivate it.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // This section will only render for active users
     return (
         <div className="time-clock-page">
             <div className="time-clock-dashboard">
 
-                {/* --- NEW HEADER SECTION --- */}
                 <header className="dashboard-header">
                     <div className="user-info">
                         <div className="avatar">{loggedInStaff.first_name.charAt(0)}</div>

@@ -40,6 +40,9 @@ Route::get('/teams/{team}/timesheets', [TeamController::class, 'getRecentTimeshe
 Route::post('/teams/login-by-code', [TeamController::class, 'loginByCode']);
 Route::get('/teams/{team}/status', [TeamController::class, 'status']); // Get a team member's current clock-in status
 Route::apiResource('teams', TeamController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
+Route::patch('/teams/{team}/status', [TeamController::class, 'updateStatus']);
+
+Route::post('/staff/register', [TeamController::class, 'register']); // <-- ADD THIS NEW ROUTE
 
 // Timesheet Routes
 Route::post('/timesheets/clock-in', [TimesheetController::class, 'clockIn']);

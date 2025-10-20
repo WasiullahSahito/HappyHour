@@ -1,11 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Outlet } from 'react-router-dom';
-
-// --- Context and Protected Route ---
 import { StaffAuthProvider } from './context/StaffAuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
-
-// --- Core Layout & Pages ---
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import IngredientManagement from './pages/IngredientManagement';
@@ -16,14 +12,15 @@ import InvoiceManagement from './pages/InvoiceManagement';
 import InvoiceDetail from './pages/InvoiceDetail';
 import SupplierManagement from './pages/SupplierManagement';
 import SupplierDetail from './pages/SupplierDetail';
-
-// --- Staff Management Pages (for Managers) ---
 import StaffDirectory from './pages/StaffManagement/StaffDirectory';
 import Timesheets from './pages/StaffManagement/Timesheets';
+import StaffDetail from './pages/StaffManagement/StaffDetail'; // <-- IMPORT THE NEW COMPONENT
 
-// --- Standalone Staff Time Clock Pages (for Employees) ---
+
 import StaffTimeClockLogin from './pages/StaffManagement/StaffTimeClockLogin';
 import StaffTimeClockDetail from './pages/StaffManagement/StaffTimeClockDetail';
+import RegisterStaff from './pages/StaffManagement/RegisterStaff'; // <-- IMPORT NEW PAGE
+
 
 const StaffLayout = () => (
     <div>
@@ -39,11 +36,8 @@ const StaffLayout = () => (
 function App() {
     return (
         <BrowserRouter>
-            {/* 1. Wrap the entire application in the StaffAuthProvider */}
-            {/* This makes the login state available everywhere. */}
             <StaffAuthProvider>
                 <Routes>
-                    {/* --- Main Application Routes (Unchanged) --- */}
                     <Route path="/" element={<Layout />}>
                         <Route index element={<Dashboard />} />
                         <Route path="recipes" element={<RecipeManagement />} />
@@ -59,13 +53,13 @@ function App() {
                             <Route index element={<StaffDirectory />} />
                             <Route path="timesheets" element={<Timesheets />} />
                         </Route>
+                        <Route path="staff/:id" element={<StaffDetail />} />
+
                     </Route>
+                    <Route path="/staff/register" element={<RegisterStaff />} />
 
-                    {/* --- Standalone Routes for the Staff Time Clock --- */}
+
                     <Route path="/staff/time-clock" element={<StaffTimeClockLogin />} />
-
-                    {/* 2. Wrap the detail page in our new ProtectedRoute component */}
-                    {/* This prevents direct access without logging in. */}
                     <Route
                         path="/staff/time-clock/:staffId"
                         element={

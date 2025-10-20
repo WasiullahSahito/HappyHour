@@ -56,8 +56,8 @@ const AddIngredientForm = ({ onClose, onSave, suppliers }) => {
                 <h4>Basic Information</h4>
                 <div className="form-group"><label>Ingredient Name *</label><input type="text" name="ingredient_name" value={formData.ingredient_name} onChange={handleChange} required /></div>
                 <div className="input-group">
-                    <div className="form-group"><label>Category *</label><select name="category" value={formData.category} onChange={handleChange} required><option value="">Select category</option><option>Produce</option><option>Dairy</option><option>Meat</option></select></div>
-                    <div className="form-group"><label>Unit *</label><select name="unit" value={formData.unit} onChange={handleChange} required><option value="">Select unit</option><option>kg</option><option>g</option><option>each</option></select></div>
+                    <div className="form-group"><label>Category *</label><input type="text" name="category" value={formData.category} onChange={handleChange} placeholder="e.g., Dairy, Produce" required /></div>
+                    <div className="form-group"><label>Unit *</label><input type="text" name="unit" value={formData.unit} onChange={handleChange} placeholder="e.g., kg, litre, each" required /></div>
                 </div>
                 <div className="form-group"><label>Current Price * (AUD)</label><input type="number" step="0.01" name="current_price" value={formData.current_price} onChange={handleChange} required /></div>
             </div>
