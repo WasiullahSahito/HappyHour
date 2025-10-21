@@ -7,6 +7,7 @@ import axios from 'axios';
 
 // ===================================================================================
 //  HELPER COMPONENT: The Multi-Step Form for Adding a Supplier
+//  (Now included directly in this file)
 // ===================================================================================
 const AddSupplierForm = ({ onClose, onSupplierAdded }) => {
     const [step, setStep] = useState(1);
@@ -52,29 +53,26 @@ const AddSupplierForm = ({ onClose, onSupplierAdded }) => {
 
     const handleReviewAndContinue = () => {
         if (!lookupResult) return;
-
-        // Use the new structured address_components from the API to pre-fill the form
         const { address_components } = lookupResult;
-
         setFormData(prev => ({
             ...prev,
-            abn: formData.abn, // Preserve the ABN entered by the user
+            abn: formData.abn,
             company_name: lookupResult.business_name,
             entity_type: lookupResult.entity_type,
             entity_status: lookupResult.status,
-            street_address: address_components.street_address,
-            city: address_components.city,
-            state: address_components.state,
-            postcode: address_components.postcode,
+            street_address: address_components.street_address || '',
+            city: address_components.city || '',
+            state: address_components.state || '',
+            postcode: address_components.postcode || '',
         }));
-        setStep(2); // Move to the "Basic Info" step
+        setStep(2);
     };
 
     const handleQuickAdd = async () => {
         if (!lookupResult) return;
         const { address_components } = lookupResult;
         const newSupplierData = {
-            ...formData, // includes ABN
+            abn: formData.abn,
             company_name: lookupResult.business_name,
             entity_type: lookupResult.entity_type,
             entity_status: lookupResult.status,
@@ -85,6 +83,7 @@ const AddSupplierForm = ({ onClose, onSupplierAdded }) => {
             primary_contact_person: 'To be confirmed',
             email_address: `orders@${lookupResult.business_name.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`,
             phone_number: 'N/A',
+            product_categories: [],
         };
         try {
             await axios.post('/api/suppliers', newSupplierData);
@@ -217,17 +216,20 @@ const SupplierManagement = () => {
     }, []);
 
     const handleDelete = async (id, name) => {
-        if (window.confirm(`Are you sure you want to delete the supplier "${name}"? This action cannot be undone.`)) {
+        if (window.confirm(`Are you sure you want to delete the supplier "${name}"?`)) {
             try {
                 await axios.delete(`/api/suppliers/${id}`);
                 alert(`Supplier "${name}" deleted successfully.`);
-                fetchSuppliers(); // Refresh the list
+                fetchSuppliers();
             } catch (err) {
-                console.error('Delete error:', err);
-                alert('Failed to delete supplier. It may be associated with existing ingredients or invoices.');
+                alert('Failed to delete supplier.');
             }
         }
     };
+
+    const totalMonthlySpend = suppliers.reduce((sum, supplier) => {
+        return sum + parseFloat(supplier.invoices_sum_total || 0);
+    }, 0);
 
     return (
         <>
@@ -238,13 +240,13 @@ const SupplierManagement = () => {
 
             <div className="grid-container">
                 <StatCard title="Total Suppliers" value={suppliers.length} />
-                <StatCard title="Total Monthly Spend" value="$0.00" />
+                <StatCard title="Total Monthly Spend" value={`$${totalMonthlySpend.toFixed(2)}`} />
                 <StatCard title="Active Suppliers" value={suppliers.length} />
             </div>
 
             <div className="card table-container">
-                {loading && <p style={{ padding: '20px', textAlign: 'center' }}>Loading suppliers...</p>}
-                {error && <p className="error-message" style={{ color: 'red', padding: '20px' }}>{error}</p>}
+                {loading && <p style={{ textAlign: 'center', padding: '20px' }}>Loading suppliers...</p>}
+                {error && <p className="error-message">{error}</p>}
                 {!loading && !error && (
                     <table className="data-table">
                         <thead>
@@ -252,15 +254,17 @@ const SupplierManagement = () => {
                                 <th>Supplier</th>
                                 <th>Location</th>
                                 <th>Contact</th>
+                                <th>Monthly Spend</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {suppliers.length > 0 ? suppliers.map(supplier => (
+                            {suppliers.map(supplier => (
                                 <tr key={supplier.id}>
                                     <td><strong>{supplier.company_name}</strong></td>
-                                    <td>{supplier.city}, {supplier.state}</td>
+                                    <td>{`${supplier.city || ''}${supplier.state ? `, ${supplier.state}` : ''}`}</td>
                                     <td>{supplier.primary_contact_person}<br /><small>{supplier.email_address}</small></td>
+                                    <td>${Number(supplier.invoices_sum_total || 0).toFixed(2)}</td>
                                     <td>
                                         <div className="actions-cell">
                                             <Link to={`/suppliers/${supplier.id}`} className="btn-link">View Details</Link>
@@ -268,9 +272,7 @@ const SupplierManagement = () => {
                                         </div>
                                     </td>
                                 </tr>
-                            )) : (
-                                <tr><td colSpan="4" style={{ textAlign: 'center', padding: '20px' }}>No suppliers found.</td></tr>
-                            )}
+                            ))}
                         </tbody>
                     </table>
                 )}

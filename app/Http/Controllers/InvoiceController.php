@@ -15,12 +15,24 @@ class InvoiceController extends Controller
 {
     public function index()
     {
-        return Invoice::with('supplier')->orderBy('invoice_date', 'desc')->get()->map(function ($invoice) {
-            if (empty($invoice->status)) {
-                $invoice->status = 'uploaded';
-            }
-            return $invoice;
-        });
+        $invoices = Invoice::with('supplier')->orderBy('invoice_date', 'desc')->get();
+
+        $totalInvoices = $invoices->count();
+        $processedCount = $invoices->where('status', 'processed')->count();
+
+        // Calculate Match Rate, handling division by zero
+        $matchRate = $totalInvoices > 0 ? ($processedCount / $totalInvoices) * 100 : 0;
+
+        // Return a structured response with invoices and stats
+        return response()->json([
+            'invoices' => $invoices,
+            'stats' => [
+                'processing_queue' => $invoices->where('status', 'processing')->count(),
+                'needs_review' => $invoices->where('status', 'needs review')->count(),
+                'approved' => $processedCount,
+                'match_rate' => round($matchRate),
+            ]
+        ]);
     }
 
     public function show($id)

@@ -6,12 +6,17 @@ use App\Models\Supplier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB; // <-- Import the DB facade
+
 
 class SupplierController extends Controller
 {
     public function index()
     {
-        return Supplier::orderBy('company_name')->get();
+        return Supplier::withCount('invoices')
+            ->withSum('invoices', 'total') // This calculates the sum of the 'total' column on the invoices table
+            ->orderBy('company_name')
+            ->get();
     }
 
     public function show($id)

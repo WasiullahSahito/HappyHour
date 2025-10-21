@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import Modal from '../../components/Modal';
-import AddTeamMemberForm from './AddTeamMemberForm'; // The form we just fixed
+import AddTeamMemberForm from './AddTeamMemberForm'; // Assuming this is your multi-step form
 import axios from 'axios';
-import { parse, differenceInMinutes } from 'date-fns';
+import { parse } from 'date-fns';
 
-// This can be a simplified version or the full one from previous turns
+// Simplified WorkScheduleModal for context
 const WorkScheduleModal = ({ staff, onClose }) => {
     if (!staff) return null;
     return (
@@ -26,12 +26,14 @@ const StaffDirectory = () => {
     const navigate = useNavigate();
 
     const fetchTeamMembers = async () => {
-        setLoading(true); setError(null);
+        setLoading(true);
+        setError(null);
         try {
             const response = await axios.get('/api/teams');
             setTeamMembers(response.data);
         } catch (err) {
             setError('Failed to load team members.');
+            console.error(err);
         } finally {
             setLoading(false);
         }
@@ -59,6 +61,7 @@ const StaffDirectory = () => {
                 fetchTeamMembers();
             } catch (err) {
                 alert(`Failed to delete ${name}.`);
+                console.error(err);
             }
         }
     };
@@ -74,7 +77,9 @@ const StaffDirectory = () => {
     };
 
     const activeStaffCount = teamMembers.filter(member => member.status === 'active').length;
-    const averageHourlyRate = teamMembers.length > 0 ? (teamMembers.reduce((sum, member) => sum + Number(member.hourly_rate), 0) / teamMembers.length) : 0;
+    const paidMembers = teamMembers.filter(member => Number(member.hourly_rate) > 0);
+    const totalRateSum = paidMembers.reduce((sum, member) => sum + Number(member.hourly_rate), 0);
+    const averageHourlyRate = paidMembers.length > 0 ? (totalRateSum / paidMembers.length) : 0;
 
     return (
         <div>
@@ -90,36 +95,51 @@ const StaffDirectory = () => {
             </div>
 
             <div className="card table-container">
-                {loading ? <p>Loading...</p> : error ? <p className="error-message">{error}</p> : (
+                {loading ? <p style={{ textAlign: 'center', padding: '20px' }}>Loading...</p> : error ? <p className="error-message" style={{ padding: '20px' }}>{error}</p> : (
                     <table className="data-table">
                         <thead>
-                            <tr><th>Staff Member</th><th>Position & Branch</th><th>Hourly Rate</th><th>Status</th><th>Actions</th></tr>
+                            <tr>
+                                <th>Staff Member</th>
+                                <th>Position & Branch</th>
+                                <th>Hourly Rate</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
                         </thead>
                         <tbody>
-                            {teamMembers.map(member => (
-                                <tr key={member.id}>
-                                    <td><strong>{member.first_name} {member.last_name}</strong><br /><small>{member.email}</small></td>
-                                    <td><strong>{member.position}</strong><br /><small>{member.branch}</small></td>
-                                    <td><strong>${Number(member.hourly_rate || 0).toFixed(2)}/hr</strong><br /><small>{member.employment_type}</small></td>
-                                    <td>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                            <label className="switch">
-                                                <input type="checkbox" checked={member.status === 'active'} onChange={() => handleStatusToggle(member)} />
-                                                <span className="slider round"></span>
-                                            </label>
-                                            <span style={{ textTransform: 'capitalize' }}>{member.status}</span>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div className="actions-cell">
-                                            <Link to={`/staff/${member.id}`} className="btn-link">View Detail</Link>
-                                            <a onClick={() => handleViewSchedule(member)} className="btn-link">Schedule</a>
-                                            <a onClick={() => handleEditDetails(member)} className="btn-link">Edit</a>
-                                            <button onClick={() => handleDelete(member.id, `${member.first_name} ${member.last_name}`)} className="btn-delete">Delete</button>
-                                        </div>
+                            {/* --- THIS IS THE KEY CHANGE --- */}
+                            {teamMembers.length === 0 ? (
+                                <tr>
+                                    <td colSpan="5" style={{ textAlign: 'center', padding: '20px', color: 'var(--dark-gray)' }}>
+                                        No staff available.
                                     </td>
                                 </tr>
-                            ))}
+                            ) : (
+                                teamMembers.map(member => (
+                                    <tr key={member.id}>
+                                        <td><strong>{member.first_name} {member.last_name}</strong><br /><small>{member.email}</small></td>
+                                        <td><strong>{member.position}</strong><br /><small>{member.branch}</small></td>
+                                        <td><strong>${Number(member.hourly_rate || 0).toFixed(2)}/hr</strong><br /><small>{member.employment_type}</small></td>
+                                        <td>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                <label className="switch">
+                                                    <input type="checkbox" checked={member.status === 'active'} onChange={() => handleStatusToggle(member)} />
+                                                    <span className="slider round"></span>
+                                                </label>
+                                                <span style={{ textTransform: 'capitalize' }}>{member.status}</span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div className="actions-cell">
+                                                <Link to={`/staff/${member.id}`} className="btn-link">View Detail</Link>
+                                                <a onClick={() => handleViewSchedule(member)} className="btn-link">Schedule</a>
+                                                <a onClick={() => handleEditDetails(member)} className="btn-link">Edit</a>
+                                                <button onClick={() => handleDelete(member.id, `${member.first_name} ${member.last_name}`)} className="btn-delete">Delete</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
                         </tbody>
                     </table>
                 )}

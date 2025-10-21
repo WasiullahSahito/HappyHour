@@ -131,7 +131,7 @@ const Timesheets = () => {
                                             <span style={{ padding: '4px 8px', borderRadius: '12px', background: '#d1fae5', color: '#065f46', fontSize: '0.8rem' }}>{stats.status}</span>
                                         </td>
                                         <td style={{ padding: '16px 8px', borderTop: '1px solid #dee2e6' }}>
-                                            <Link to={`/staff/time-clock/${member.id}`} style={{ color: '#0d6efd', textDecoration: 'none' }}>View Details</Link>
+                                            <Link to={`/staff/time-clock/${member.id}`} style={{ color: '#0d6efd', textDecoration: 'none' }}>Clock In</Link>
                                         </td>
                                     </tr>
                                 );
