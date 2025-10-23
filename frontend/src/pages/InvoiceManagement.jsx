@@ -4,20 +4,95 @@ import StatCard from '../components/StatsCard';
 import Modal from '../components/Modal';
 import axios from 'axios';
 
-// Assuming UploadInvoiceForm is defined elsewhere or in this file
+// --- THIS IS THE FULL, WORKING UPLOAD FORM COMPONENT ---
 const UploadInvoiceForm = ({ onClose, onInvoiceUploaded, suppliers }) => {
-    // ... form logic
+    const [formData, setFormData] = useState({
+        supplier_id: '',
+        invoice_date: '',
+        due_date: '',
+        invoice_file: null,
+    });
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+
+    const handleChange = (e) => {
+        const { name, value, files } = e.target;
+        setFormData(prev => ({
+            ...prev,
+            [name]: files ? files[0] : value,
+        }));
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setError(null);
+
+        const data = new FormData();
+        // Append all form data fields to the FormData object
+        for (const key in formData) {
+            if (formData[key]) {
+                data.append(key, formData[key]);
+            }
+        }
+
+        try {
+            await axios.post('/api/invoices', data, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
+            alert('Invoice Uploaded! It can now be processed with AI.');
+            onInvoiceUploaded(); // This will refresh the invoice list
+            onClose(); // This will close the modal
+        } catch (err) {
+            console.error('Failed to upload invoice:', err);
+            const message = err.response?.data?.message || 'Failed to upload. Please check your input and try again.';
+            setError(message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
-        <form>
-            {/* Form fields go here */}
+        <form onSubmit={handleSubmit}>
+            <div className="form-group">
+                <label htmlFor="supplier_id">Supplier</label>
+                <select id="supplier_id" name="supplier_id" value={formData.supplier_id} onChange={handleChange} required>
+                    <option value="">Select a supplier</option>
+                    {suppliers.map(supplier => (
+                        <option key={supplier.id} value={supplier.id}>{supplier.company_name}</option>
+                    ))}
+                </select>
+            </div>
+            <div className="input-group">
+                <div className="form-group">
+                    <label htmlFor="invoice_date">Invoice Date</label>
+                    <input type="date" id="invoice_date" name="invoice_date" value={formData.invoice_date} onChange={handleChange} required />
+                </div>
+                <div className="form-group">
+                    <label htmlFor="due_date">Due Date</label>
+                    <input type="date" id="due_date" name="due_date" value={formData.due_date} onChange={handleChange} required />
+                </div>
+            </div>
+            <div className="form-group">
+                <label htmlFor="invoice_file">Upload Invoice File</label>
+                <input type="file" id="invoice_file" name="invoice_file" onChange={handleChange} required accept=".pdf,.jpg,.jpeg,.png" />
+                <small>Supported formats: PDF, JPG, PNG</small>
+            </div>
+            {error && <p className="error-message" style={{ color: 'red' }}>{error}</p>}
             <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
-                <button type="submit" className="btn btn-primary">Upload</button>
+                <button type="button" className="btn btn-secondary" onClick={onClose} disabled={loading}>Cancel</button>
+                <button type="submit" className="btn btn-primary" disabled={loading}>
+                    {loading ? 'Uploading...' : 'Upload'}
+                </button>
             </div>
         </form>
     );
 };
 
+
+// --- Main InvoiceManagement Component ---
 const InvoiceManagement = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [invoices, setInvoices] = useState([]);
@@ -40,14 +115,12 @@ const InvoiceManagement = () => {
                 axios.get('/api/invoices'),
                 axios.get('/api/suppliers')
             ]);
-
             setInvoices(invoicesResponse.data.invoices);
             setStats(invoicesResponse.data.stats);
-
             setSuppliers(suppliersResponse.data);
         } catch (err) {
             console.error('Failed to fetch data:', err);
-            setError('Failed to load page data. Please try again later.');
+            setError('Failed to load page data.');
         } finally {
             setLoading(false);
         }
@@ -82,13 +155,6 @@ const InvoiceManagement = () => {
         }
     };
 
-    // --- FAULTY LOGIC REMOVED ---
-    // const processingQueue = invoices.filter(inv => inv.status === 'processing').length;
-    // const needsReview = invoices.filter(inv => inv.status === 'needs review').length;
-    // const processed = invoices.filter(inv => inv.status === 'processed').length;
-    // const matchRate = '94%';
-    // This is no longer needed because the backend provides this data in the `stats` object.
-
     return (
         <>
             <header>
@@ -96,7 +162,6 @@ const InvoiceManagement = () => {
                 <button className="btn btn-primary" onClick={() => setIsModalOpen(true)}>Upload Invoice</button>
             </header>
             <div className="grid-container">
-                {/* --- CORRECTED: Use the stats object from state --- */}
                 <StatCard title="Processing Queue" value={stats.processing_queue} />
                 <StatCard title="Needs Review" value={stats.needs_review} />
                 <StatCard title="Approved" value={stats.approved} />
@@ -123,7 +188,7 @@ const InvoiceManagement = () => {
                         </thead>
                         <tbody>
                             {invoices.length === 0 ? (
-                                <tr><td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>No invoices found.</td></tr>
+                                <tr><td colSpan="6" style={{ textAlign: 'center' }}>No invoices found.</td></tr>
                             ) : (
                                 invoices.map(invoice => (
                                     <tr key={invoice.id}>
