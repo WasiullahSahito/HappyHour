@@ -2,32 +2,36 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import StatCard from '../components/StatsCard';
+import Modal from '../components/Modal';
+import { AddSupplierForm } from './SupplierManagement'; // Import the form
 
 const SupplierDetail = () => {
     const { id } = useParams();
     const [supplier, setSupplier] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false); // State for modal
+
+    const fetchSupplierDetails = async () => {
+        setLoading(true);
+        try {
+            const response = await axios.get(`/api/suppliers/${id}`);
+            setSupplier(response.data);
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const fetchSupplierDetails = async () => {
-            setLoading(true);
-            try {
-                const response = await axios.get(`/api/suppliers/${id}`);
-                setSupplier(response.data);
-            } catch (err) {
-                setError('Failed to load supplier details.');
-                console.error(err);
-            } finally {
-                setLoading(false);
-            }
-        };
         fetchSupplierDetails();
     }, [id]);
 
-    if (loading) return <p>Loading supplier details...</p>;
-    if (error) return <p className="error-message">{error}</p>;
-    if (!supplier) return <p>No supplier data found.</p>;
+    if (loading) return <p style={{ padding: '20px' }}>Loading supplier details...</p>;
+    if (!supplier) return <p style={{ padding: '20px' }}>Supplier not found.</p>;
+
+    // Safely calculate total spend
+    const totalSpend = (supplier.invoices || []).reduce((sum, inv) => sum + parseFloat(inv.total || 0), 0);
 
     return (
         <>
@@ -37,72 +41,68 @@ const SupplierDetail = () => {
                     <h1>{supplier.company_name}</h1>
                 </div>
                 <div>
-                    <button className="btn btn-secondary">Edit Supplier</button>
-                    <button className="btn btn-primary">Place New Order</button>
+                    {/* Clicking this button opens the modal */}
+                    <button className="btn btn-secondary" onClick={() => setIsEditModalOpen(true)}>Edit Supplier</button>
                 </div>
             </header>
 
-            <div className="card">
-                <h3>Performance Metrics</h3>
-                <div className="metrics-grid">
-                    <p><span>Overall Rating:</span> <span>{supplier.performance?.overall_rating ?? 'N/A'} ⭐</span></p>
-                    <p><span>Total Orders:</span> <span>{supplier.performance?.total_orders ?? 'N/A'}</span></p>
-                    <p><span>On-Time Delivery:</span> <span>{supplier.performance?.on_time_delivery ?? 'N/A'}%</span></p>
-                    <p><span>Quality Rating:</span> <span>{supplier.performance?.quality_rating ?? 'N/A'} ⭐</span></p>
-                </div>
-            </div>
-
-            <div className="card" style={{ backgroundColor: 'var(--light-green-bg)' }}>
-                <h3>Financial Summary</h3>
-                <div className="metrics-grid">
-                    <p><span>Monthly Spend:</span> <strong>${Number(supplier.financials?.monthly_spend ?? 0).toFixed(2)}</strong></p>
-                    <p><span>Last Order:</span> <span>{supplier.financials?.last_order_date ?? 'N/A'}</span></p>
-                    <p><span>Supplier Type:</span> <span>{supplier.financials?.supplier_type ?? 'N/A'}</span></p>
-                </div>
+            <div className="grid-container">
+                <StatCard title="Total Spend" value={`$${totalSpend.toFixed(2)}`} />
+                <StatCard title="Total Invoices" value={supplier.invoices?.length || 0} />
+                <StatCard title="Ingredients Supplied" value={supplier.ingredients?.length || 0} />
             </div>
 
             <div className="card">
                 <h3>Ingredients from {supplier.company_name}</h3>
                 <div className="table-container">
                     <table className="data-table">
-                        <thead><tr><th>Ingredient</th><th>Current Price</th><th>7d Change</th></tr></thead>
+                        <thead><tr><th>Ingredient</th><th>Current Price</th><th>Unit</th></tr></thead>
                         <tbody>
                             {(supplier.ingredients || []).map(ing => (
                                 <tr key={ing.id}>
                                     <td>{ing.ingredient_name}</td>
-                                    <td>${Number(ing.current_price ?? 0).toFixed(2)} /{ing.unit}</td>
-                                    <td className={(ing.seven_day_change ?? 0) > 0 ? 'price-change increase' : 'price-change decrease'}>
-                                        {(ing.seven_day_change ?? 0) > 0 ? '+' : ''}{ing.seven_day_change ?? 0}%
-                                    </td>
+                                    <td>${Number(ing.current_price ?? 0).toFixed(2)}</td>
+                                    <td>/{ing.unit}</td>
                                 </tr>
                             ))}
+                            {(!supplier.ingredients || supplier.ingredients.length === 0) && (
+                                <tr><td colSpan="3" style={{ textAlign: 'center', padding: '20px', color: '#666' }}>No ingredients supplied by this supplier.</td></tr>
+                            )}
                         </tbody>
                     </table>
                 </div>
             </div>
 
             <div className="card">
-                <h3>Recent Order History</h3>
+                <h3>Recent Invoices</h3>
                 <div className="table-container">
                     <table className="data-table">
-                        <thead><tr><th>Order ID</th><th>Date</th><th>Items</th><th>Status</th><th>Total</th></tr></thead>
+                        <thead><tr><th>Invoice #</th><th>Date</th><th>Status</th><th>Total</th></tr></thead>
                         <tbody>
-                            {(supplier.order_history || []).map(order => (
-                                <tr key={order.id}>
-                                    <td>{order.id}</td>
-                                    <td>{order.date}</td>
-                                    <td>{order.items}</td>
-                                    <td><span className={`status-tag status-delivered`}>{order.status}</span></td>
-                                    <td>${Number(order.total ?? 0).toFixed(2)}</td>
+                            {(supplier.invoices || []).map(invoice => (
+                                <tr key={invoice.id}>
+                                    <td><Link to={`/invoices/${invoice.id}`} className="btn-link">{invoice.invoice_number}</Link></td>
+                                    <td>{new Date(invoice.invoice_date).toLocaleDateString()}</td>
+                                    <td><span className={`status-tag status-${invoice.status}`}>{invoice.status}</span></td>
+                                    <td>${Number(invoice.total ?? 0).toFixed(2)}</td>
                                 </tr>
                             ))}
-                            {(!supplier.order_history || supplier.order_history.length === 0) && (
-                                <tr><td colSpan="5" style={{ textAlign: 'center' }}>No order history found for this supplier.</td></tr>
+                            {(!supplier.invoices || supplier.invoices.length === 0) && (
+                                <tr><td colSpan="4" style={{ textAlign: 'center', padding: '20px', color: '#666' }}>No invoice history found.</td></tr>
                             )}
                         </tbody>
                     </table>
                 </div>
             </div>
+
+            {/* --- EDIT SUPPLIER MODAL --- */}
+            <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Edit Supplier">
+                <AddSupplierForm
+                    onClose={() => setIsEditModalOpen(false)}
+                    onSupplierAdded={fetchSupplierDetails} // Refresh data after update
+                    initialData={supplier} // Pass current data to pre-fill the form
+                />
+            </Modal>
         </>
     );
 };

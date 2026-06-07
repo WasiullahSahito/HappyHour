@@ -4,12 +4,32 @@ import StatCard from '../components/StatsCard';
 import Modal from '../components/Modal';
 import Stepper from '../components/Stepper';
 import axios from 'axios';
+import { toast } from 'react-hot-toast';
 
-// ===================================================================================
-//  HELPER COMPONENT: The Multi-Step Form for Adding a Supplier
-//  (Now included directly in this file)
-// ===================================================================================
-const AddSupplierForm = ({ onClose, onSupplierAdded }) => {
+// --- Comprehensive List of Country Codes ---
+const countryCodes = [
+    { name: "Australia", dial_code: "+61", code: "AU" },
+    { name: "United States", dial_code: "+1", code: "US" },
+    { name: "United Kingdom", dial_code: "+44", code: "GB" },
+    { name: "New Zealand", dial_code: "+64", code: "NZ" },
+    { name: "Canada", dial_code: "+1", code: "CA" },
+    { name: "China", dial_code: "+86", code: "CN" },
+    { name: "India", dial_code: "+91", code: "IN" },
+    { name: "Indonesia", dial_code: "+62", code: "ID" },
+    { name: "Japan", dial_code: "+81", code: "JP" },
+    { name: "Malaysia", dial_code: "+60", code: "MY" },
+    { name: "Philippines", dial_code: "+63", code: "PH" },
+    { name: "Singapore", dial_code: "+65", code: "SG" },
+    { name: "South Korea", dial_code: "+82", code: "KR" },
+    { name: "Thailand", dial_code: "+66", code: "TH" },
+    { name: "Vietnam", dial_code: "+84", code: "VN" },
+    { name: "Germany", dial_code: "+49", code: "DE" },
+    { name: "France", dial_code: "+33", code: "FR" },
+    { name: "Italy", dial_code: "+39", code: "IT" },
+    { name: "Spain", dial_code: "+34", code: "ES" },
+].sort((a, b) => a.name.localeCompare(b.name));
+
+export const AddSupplierForm = ({ onClose, onSupplierAdded, initialData }) => {
     const [step, setStep] = useState(1);
     const steps = ['ABN Lookup', 'Basic Info', 'Address', 'Business Details'];
 
@@ -18,6 +38,7 @@ const AddSupplierForm = ({ onClose, onSupplierAdded }) => {
         company_name: '',
         primary_contact_person: '',
         email_address: '',
+        phone_country_code: '+61',
         phone_number: '',
         street_address: '',
         city: '',
@@ -29,8 +50,34 @@ const AddSupplierForm = ({ onClose, onSupplierAdded }) => {
     });
 
     const [lookupResult, setLookupResult] = useState(null);
-    const [lookupError, setLookupError] = useState('');
     const [lookupLoading, setLookupLoading] = useState(false);
+
+    useEffect(() => {
+        if (initialData) {
+            let phone = initialData.phone_number || '';
+            let code = '+61';
+
+            const matchedCountry = countryCodes.find(c => phone.startsWith(c.dial_code));
+            if (matchedCountry) {
+                code = matchedCountry.dial_code;
+                phone = phone.replace(code, '').trim();
+            }
+
+            setFormData({
+                ...initialData,
+                phone_country_code: code,
+                phone_number: phone,
+                abn: initialData.abn || '',
+                street_address: initialData.street_address || '',
+                city: initialData.city || '',
+                state: initialData.state || '',
+                postcode: initialData.postcode || '',
+                entity_type: initialData.entity_type || '',
+                entity_status: initialData.entity_status || '',
+            });
+            setStep(2);
+        }
+    }, [initialData]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -38,14 +85,19 @@ const AddSupplierForm = ({ onClose, onSupplierAdded }) => {
     };
 
     const handleLookup = async () => {
+        if (!formData.abn) {
+            toast.error('Please enter an ABN first.');
+            return;
+        }
         setLookupLoading(true);
-        setLookupError('');
+        const loadingToast = toast.loading('Looking up ABN...');
         setLookupResult(null);
         try {
             const response = await axios.post('/api/suppliers/abn-lookup', { abn: formData.abn });
             setLookupResult(response.data);
+            toast.success('Business Found!', { id: loadingToast });
         } catch (err) {
-            setLookupError(err.response?.data?.message || 'An unexpected error occurred.');
+            toast.error(err.response?.data?.message || 'Lookup failed.', { id: loadingToast });
         } finally {
             setLookupLoading(false);
         }
@@ -71,6 +123,7 @@ const AddSupplierForm = ({ onClose, onSupplierAdded }) => {
     const handleQuickAdd = async () => {
         if (!lookupResult) return;
         const { address_components } = lookupResult;
+
         const newSupplierData = {
             abn: formData.abn,
             company_name: lookupResult.business_name,
@@ -85,25 +138,75 @@ const AddSupplierForm = ({ onClose, onSupplierAdded }) => {
             phone_number: 'N/A',
             product_categories: [],
         };
+
+        const loadingToast = toast.loading('Adding supplier...');
         try {
             await axios.post('/api/suppliers', newSupplierData);
-            alert('Supplier quickly added!');
+            toast.success('Supplier quickly added!', { id: loadingToast });
             onSupplierAdded();
             onClose();
         } catch (err) {
-            alert('Error during quick add: ' + (err.response?.data?.message || 'A supplier with this name may already exist.'));
+            toast.error('Error during quick add.', { id: loadingToast });
         }
+    };
+
+    // --- VALIDATION FUNCTION ---
+    const validateForm = () => {
+        if (!formData.company_name.trim()) {
+            toast.error("Company Name is required.");
+            return false;
+        }
+        if (!formData.primary_contact_person.trim()) {
+            toast.error("Contact Person is required.");
+            return false;
+        }
+        if (!formData.email_address.trim()) {
+            toast.error("Email Address is required.");
+            return false;
+        }
+        // Basic email regex
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.email_address)) {
+            toast.error("Please enter a valid email address.");
+            return false;
+        }
+        if (!formData.phone_number.trim()) {
+            toast.error("Phone Number is required.");
+            return false;
+        }
+        return true;
+    };
+
+    const handleNextStep = () => {
+        if (step === 2) {
+            if (!validateForm()) return; // Stop if validation fails
+        }
+        setStep(prev => prev + 1);
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        if (!validateForm()) return; // Final check
+
+        const loadingToast = toast.loading(initialData ? 'Updating supplier...' : 'Adding supplier...');
+
+        const fullPhone = `${formData.phone_country_code} ${formData.phone_number}`;
+        const payload = { ...formData, phone_number: fullPhone };
+        delete payload.phone_country_code;
+
         try {
-            await axios.post('/api/suppliers', formData);
-            alert('Supplier successfully added!');
+            if (initialData) {
+                await axios.put(`/api/suppliers/${initialData.id}`, payload);
+                toast.success('Supplier Updated Successfully!', { id: loadingToast });
+            } else {
+                await axios.post('/api/suppliers', payload);
+                toast.success('Supplier Added Successfully!', { id: loadingToast });
+            }
             onSupplierAdded();
             onClose();
         } catch (err) {
-            alert('Error adding supplier: ' + (err.response?.data?.message || 'Please check your input. A supplier with this name may already exist.'));
+            toast.error(err.response?.data?.message || 'Error saving supplier.', { id: loadingToast });
         }
     };
 
@@ -113,35 +216,15 @@ const AddSupplierForm = ({ onClose, onSupplierAdded }) => {
 
             <div className={`form-step ${step === 1 ? 'active' : ''}`}>
                 <h4>Business Lookup</h4>
-                <p>Enter the ABN to automatically retrieve business details</p>
-                <div className="form-group">
-                    <label htmlFor="abn">Australian Business Number (ABN) *</label>
-                    <input type="text" id="abn" name="abn" value={formData.abn} onChange={handleChange} placeholder="e.g. 36103573806" />
-                </div>
-                <button type="button" className="btn btn-blue" onClick={handleLookup} disabled={lookupLoading}>
-                    {lookupLoading ? 'Looking up...' : 'Lookup'}
-                </button>
+                <div className="form-group"><label>ABN</label><input type="text" name="abn" value={formData.abn} onChange={handleChange} placeholder="e.g. 36103573806" /></div>
+                <button type="button" className="btn btn-blue" onClick={handleLookup} disabled={lookupLoading}>{lookupLoading ? 'Looking up...' : 'Lookup'}</button>
 
-                {lookupError && !lookupResult && (
-                    <div className="lookup-result error" style={{ marginTop: '20px' }}>
-                        <h4>Business Not Found</h4>
-                        <p>{lookupError}</p>
-                        <button type="button" className="btn btn-secondary" onClick={() => setStep(2)}>Continue Manually</button>
-                    </div>
-                )}
                 {lookupResult && (
-                    <div className="lookup-result success" style={{ marginTop: '20px' }}>
-                        <h4>Business Found!</h4>
-                        <p><strong>Business Name:</strong> {lookupResult.business_name}</p>
-                        <p><strong>Entity Type:</strong> {lookupResult.entity_type}</p>
-                        <p><strong>Status:</strong> {lookupResult.status}</p>
-                        <p><strong>Address:</strong> {lookupResult.formatted_address}</p>
+                    <div className="lookup-result success" style={{ marginTop: '15px' }}>
+                        <p><strong>Found:</strong> {lookupResult.business_name}</p>
                         <div className="quick-add-options">
-                            <p>Add this supplier with the fetched details, or continue to review and add additional information.</p>
-                            <div className="modal-footer" style={{ justifyContent: 'flex-start', borderTop: 'none', padding: '15px 0 0 0' }}>
-                                <button type="button" className="btn btn-primary" onClick={handleQuickAdd}>Quick Add Supplier</button>
-                                <button type="button" className="btn btn-secondary" onClick={handleReviewAndContinue}>Review & Edit Details</button>
-                            </div>
+                            <button type="button" className="btn btn-primary" onClick={handleQuickAdd} style={{ marginRight: '10px' }}>Quick Add</button>
+                            <button type="button" className="btn btn-secondary" onClick={handleReviewAndContinue}>Review & Edit</button>
                         </div>
                     </div>
                 )}
@@ -152,26 +235,62 @@ const AddSupplierForm = ({ onClose, onSupplierAdded }) => {
                     <div className={`form-step ${step === 2 ? 'active' : ''}`}>
                         <h4>Basic Information</h4>
                         <div className="form-group"><label>Company Name *</label><input type="text" name="company_name" value={formData.company_name} onChange={handleChange} required /></div>
-                        <div className="form-group"><label>Primary Contact Person *</label><input type="text" name="primary_contact_person" value={formData.primary_contact_person} onChange={handleChange} placeholder="Full name" required /></div>
-                        <div className="form-group"><label>Email Address *</label><input type="email" name="email_address" value={formData.email_address} onChange={handleChange} placeholder="orders@company.com" required /></div>
-                        <div className="form-group"><label>Phone Number *</label><input type="tel" name="phone_number" value={formData.phone_number} onChange={handleChange} placeholder="+61 2 1234 5678" required /></div>
+                        <div className="form-group"><label>Contact Person *</label><input type="text" name="primary_contact_person" value={formData.primary_contact_person} onChange={handleChange} required /></div>
+                        <div className="form-group"><label>Email *</label><input type="email" name="email_address" value={formData.email_address} onChange={handleChange} required /></div>
+
+                        <div className="form-group">
+                            <label>Phone Number *</label>
+                            <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '10px' }}>
+                                <select
+                                    name="phone_country_code"
+                                    value={formData.phone_country_code}
+                                    onChange={handleChange}
+                                    style={{ width: '100%' }}
+                                >
+                                    {countryCodes.map((country) => (
+                                        <option key={country.code} value={country.dial_code}>
+                                            {country.name} ({country.dial_code})
+                                        </option>
+                                    ))}
+                                </select>
+                                <input
+                                    type="tel"
+                                    name="phone_number"
+                                    value={formData.phone_number}
+                                    onChange={handleChange}
+                                    placeholder="412 345 678"
+                                    required
+                                    style={{ width: '100%' }}
+                                />
+                            </div>
+                        </div>
                     </div>
+
                     <div className={`form-step ${step === 3 ? 'active' : ''}`}>
-                        <h4>Address Information</h4>
-                        <div className="form-group"><label>Street Address</label><input type="text" name="street_address" value={formData.street_address} onChange={handleChange} /></div>
+                        <h4>Address</h4>
+                        <div className="form-group"><label>Street</label><input type="text" name="street_address" value={formData.street_address} onChange={handleChange} /></div>
                         <div className="input-group">
                             <div className="form-group"><label>City</label><input type="text" name="city" value={formData.city} onChange={handleChange} /></div>
-                            <div className="form-group"><label>State</label><select name="state" value={formData.state} onChange={handleChange}><option value="">Select State</option><option value="NSW">NSW</option><option value="VIC">VIC</option><option value="QLD">QLD</option><option value="SA">SA</option><option value="WA">WA</option><option value="TAS">TAS</option><option value="NT">NT</option><option value="ACT">ACT</option></select></div>
+                            <div className="form-group"><label>State</label><input type="text" name="state" value={formData.state} onChange={handleChange} /></div>
                         </div>
                         <div className="form-group"><label>Postcode</label><input type="text" name="postcode" value={formData.postcode} onChange={handleChange} /></div>
-                        <div className="info-box" style={{ backgroundColor: '#eef2f7' }}>💡 Address information is optional but helps with delivery coordination.</div>
                     </div>
+
                     <div className={`form-step ${step === 4 ? 'active' : ''}`}>
                         <h4>Business Details</h4>
-                        <div className="form-group"><label>ABN</label><input type="text" value={formData.abn} disabled /></div>
+                        <div className="form-group">
+                            <label>Australian Business Number (ABN)</label>
+                            <input type="text" name="abn" value={formData.abn} onChange={handleChange} placeholder="36 103 573 806" />
+                        </div>
                         <div className="input-group">
-                            <div className="form-group"><label>Entity Type</label><input type="text" value={formData.entity_type} disabled /></div>
-                            <div className="form-group"><label>Entity Status</label><input type="text" value={formData.entity_status} disabled /></div>
+                            <div className="form-group">
+                                <label>Entity Type</label>
+                                <input type="text" name="entity_type" value={formData.entity_type} onChange={handleChange} placeholder="e.g. Australian Private Company" />
+                            </div>
+                            <div className="form-group">
+                                <label>Entity Status</label>
+                                <input type="text" name="entity_status" value={formData.entity_status} onChange={handleChange} placeholder="e.g. Active" />
+                            </div>
                         </div>
                     </div>
                 </>
@@ -179,33 +298,35 @@ const AddSupplierForm = ({ onClose, onSupplierAdded }) => {
 
             <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
-                {step > 1 && <button type="button" className="btn btn-secondary" onClick={() => setStep(s => s - 1)}>← Previous</button>}
-                {step > 1 && step < steps.length && <button type="button" className="btn btn-primary" onClick={() => setStep(s => s + 1)}>Next →</button>}
-                {step === steps.length && <button type="submit" className="btn btn-primary">Add Supplier</button>}
+                {step > 1 && <button type="button" className="btn btn-secondary" onClick={() => setStep(s => s - 1)}>Back</button>}
+
+                {/* Step 2 & 3 go to Next, Step 4 submits */}
+                {step > 1 && step < 4 && (
+                    <button type="button" className="btn btn-primary" onClick={handleNextStep}>Next</button>
+                )}
+                {step === 4 && (
+                    <button type="submit" className="btn btn-primary">
+                        {initialData ? 'Update Supplier' : 'Add Supplier'}
+                    </button>
+                )}
             </div>
         </form>
     );
 };
 
-
-// ===================================================================================
-//  MAIN COMPONENT: The Supplier Management Page
-// ===================================================================================
 const SupplierManagement = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [suppliers, setSuppliers] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
 
     const fetchSuppliers = async () => {
         setLoading(true);
-        setError(null);
         try {
             const response = await axios.get('/api/suppliers');
             setSuppliers(response.data);
         } catch (err) {
             console.error(err);
-            setError('Failed to load suppliers.');
+            toast.error('Failed to load suppliers.');
         } finally {
             setLoading(false);
         }
@@ -216,13 +337,14 @@ const SupplierManagement = () => {
     }, []);
 
     const handleDelete = async (id, name) => {
-        if (window.confirm(`Are you sure you want to delete the supplier "${name}"?`)) {
+        if (window.confirm(`Are you sure you want to delete ${name}?`)) {
+            const loadingToast = toast.loading('Deleting supplier...');
             try {
                 await axios.delete(`/api/suppliers/${id}`);
-                alert(`Supplier "${name}" deleted successfully.`);
+                toast.success('Supplier deleted successfully.', { id: loadingToast });
                 fetchSuppliers();
             } catch (err) {
-                alert('Failed to delete supplier.');
+                toast.error('Failed to delete supplier.', { id: loadingToast });
             }
         }
     };
@@ -246,8 +368,7 @@ const SupplierManagement = () => {
 
             <div className="card table-container">
                 {loading && <p style={{ textAlign: 'center', padding: '20px' }}>Loading suppliers...</p>}
-                {error && <p className="error-message">{error}</p>}
-                {!loading && !error && (
+                {!loading && (
                     <table className="data-table">
                         <thead>
                             <tr>

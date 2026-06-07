@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Team extends Model
 {
+
     use HasFactory;
 
     protected $fillable = [
@@ -34,10 +35,30 @@ class Team extends Model
         'schedule' => 'array',
         'date_of_birth' => 'date',
         'start_date' => 'date',
+        'hourly_rate' => 'decimal:2',
     ];
 
     public function timesheets()
     {
         return $this->hasMany(Timesheet::class);
     }
+    public function weekSchedules()
+    {
+        return $this->hasMany(TeamWeekSchedule::class);
+    }
+    /**
+     * Get the schedule for a specific week
+     *
+     * @param string $weekStartDate Format: Y-m-d (Monday of the week)
+     * @return array|null
+     */
+    public function getWeekSchedule($weekStartDate)
+    {
+        $weekSchedule = $this->weekSchedules()
+            ->where('week_start_date', $weekStartDate)
+            ->first();
+
+        return $weekSchedule ? $weekSchedule->schedule_data : null;
+    }
+
 }

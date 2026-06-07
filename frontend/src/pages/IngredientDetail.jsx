@@ -29,11 +29,6 @@ const IngredientDetail = () => {
     if (error) return <p className="error-message">{error}</p>;
     if (!ingredient) return <p>No ingredient data found.</p>;
 
-    // Calculate monthly cost safely, providing a default of 0 if usage is missing
-    const monthlyUsage = ingredient.monthly_usage || 0;
-    const monthlyCost = (ingredient.current_price * monthlyUsage).toFixed(2);
-
-
     return (
         <>
             <header>
@@ -43,39 +38,40 @@ const IngredientDetail = () => {
                 </div>
             </header>
 
-            <div className="grid-container" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-                <StatCard title="Current Price" value={`$${Number(ingredient.current_price || 0).toFixed(2)}`} />
-                <StatCard title="Monthly Usage" value={`${monthlyUsage} ${ingredient.unit}s`} />
-                <StatCard title="Monthly Cost" value={`$${monthlyCost}`} />
+            <div className="grid-container">
+                <StatCard title="Current Price" value={`$${Number(ingredient.current_price || 0).toFixed(2)} /${ingredient.unit}`} />
+                <StatCard title="Category" value={ingredient.category} />
+                <StatCard title="Primary Supplier" value={ingredient.supplier?.company_name || 'N/A'} />
                 <StatCard title="Used In Recipes" value={ingredient.recipes.length} />
             </div>
 
             <div className="card">
-                <h3>Recipe Analysis</h3>
-                {ingredient.recipes.map(recipe => {
-                    const quantityUsed = recipe.pivot?.quantity || 0;
-                    const costInRecipe = quantityUsed * (ingredient.current_price || 0);
-                    const recipeTotalCost = recipe.cost || 0;
-                    const percentOfRecipeCost = recipeTotalCost > 0 ? (costInRecipe / recipeTotalCost) * 100 : 0;
+                <h3>Recipe Cost Analysis</h3>
+                {ingredient.recipes.length === 0 ? <p>This ingredient is not currently used in any recipes.</p> :
+                    ingredient.recipes.map(recipe => {
+                        const quantityUsed = recipe.pivot?.quantity || 0;
+                        const costInRecipe = quantityUsed * (ingredient.current_price || 0);
+                        const recipeTotalCost = recipe.cost || 0;
+                        const percentOfRecipeCost = recipeTotalCost > 0 ? (costInRecipe / recipeTotalCost) * 100 : 0;
 
-                    return (
-                        <div className="recipe-analysis-item" key={recipe.id}>
-                            <div className="usage-details">
-                                <h4>{recipe.recipe_name}</h4>
-                                <p><strong>Usage in Recipe</strong></p>
-                                <p>Quantity: {quantityUsed} {ingredient.unit}s</p>
-                                <p>Cost in Recipe: ${costInRecipe.toFixed(2)}</p>
-                                <p>% of Recipe Cost: {percentOfRecipeCost.toFixed(2)}%</p>
+                        return (
+                            <div className="recipe-analysis-item" key={recipe.id}>
+                                <div className="usage-details">
+                                    <h4><Link to={`/recipes/${recipe.id}`} className="btn-link">{recipe.recipe_name}</Link></h4>
+                                    <p><strong>Usage:</strong> {quantityUsed} {ingredient.unit}s</p>
+                                    <p><strong>Cost in Recipe:</strong> ${costInRecipe.toFixed(2)}</p>
+                                    <p><strong>% of Recipe Cost:</strong> {percentOfRecipeCost.toFixed(1)}%</p>
+                                </div>
+                                <div className="profitability">
+                                    <h4>Recipe Profitability</h4>
+                                    <p><strong>Total Cost:</strong> ${Number(recipe.cost || 0).toFixed(2)}</p>
+                                    <p><strong>Sell Price:</strong> ${Number(recipe.selling_price || 0).toFixed(2)}</p>
+                                    <p><strong>Margin:</strong> {Number(recipe.margin || 0).toFixed(1)}%</p>
+                                </div>
                             </div>
-                            <div className="profitability">
-                                <h4>Recipe Profitability</h4>
-                                <p>Recipe Cost: ${Number(recipe.cost || 0).toFixed(2)}</p>
-                                <p>Selling Price: ${Number(recipe.selling_price || 0).toFixed(2)}</p>
-                                <p>Margin: {Number(recipe.margin || 0).toFixed(1)}%</p>
-                            </div>
-                        </div>
-                    );
-                })}
+                        );
+                    })
+                }
             </div>
 
             <div className="card">

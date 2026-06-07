@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB; // <-- Import the DB facade
+use Carbon\Carbon;
 
 
 class SupplierController extends Controller
@@ -43,8 +44,10 @@ class SupplierController extends Controller
 
         $supplier = Supplier::create($validated);
 
+
         return response()->json($supplier, 201);
     }
+
 
     /**
      * Handles the ABN lookup request from the frontend.
@@ -129,6 +132,29 @@ class SupplierController extends Controller
             Log::error('ABN Lookup Exception: ' . $e->getMessage());
             return response()->json(['message' => 'An unexpected error occurred during ABN lookup.'], 500);
         }
+    }
+    public function update(Request $request, $id)
+    {
+        $supplier = Supplier::findOrFail($id);
+
+        $validated = $request->validate([
+            'company_name' => 'required|string|max:255|unique:suppliers,company_name,' . $supplier->id,
+            'primary_contact_person' => 'required|string|max:255',
+            'email_address' => 'required|email|max:255',
+            'phone_number' => 'required|string|max:50',
+            'abn' => 'nullable|string|max:20',
+            'street_address' => 'nullable|string|max:255',
+            'city' => 'nullable|string|max:100',
+            'state' => 'nullable|string|max:50',
+            'postcode' => 'nullable|string|max:20',
+            'entity_type' => 'nullable|string|max:255',
+            'entity_status' => 'nullable|string|max:100',
+            'product_categories' => 'nullable|array',
+        ]);
+
+        $supplier->update($validated);
+
+        return response()->json($supplier);
     }
 
     public function destroy($id)

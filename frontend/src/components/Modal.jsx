@@ -1,6 +1,6 @@
 import React from 'react';
 
-const Modal = ({ isOpen, onClose, title, children }) => {
+const Modal = ({ isOpen, onClose, title, children, modalClass = '' }) => {
     if (!isOpen) return null;
 
     const handleOverlayClick = (e) => {
@@ -11,7 +11,7 @@ const Modal = ({ isOpen, onClose, title, children }) => {
 
     return (
         <div className="modal-overlay active" onClick={handleOverlayClick}>
-            <div className="modal-content">
+            <div className={`modal-content ${modalClass}`}>
                 <div className="modal-header">
                     <h2>{title}</h2>
                     <button className="modal-close" onClick={onClose}>&times;</button>
