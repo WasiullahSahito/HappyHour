@@ -103,4 +103,3 @@ php artisan serve
 
 If you want, I can now list the exact files/lines where `GEMINI_API_KEY` is read or show the `.env` entry after you confirm you want to view the secret.
 "# Happy_Hour" 
-"# Happy_Hour" 
